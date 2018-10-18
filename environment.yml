@@ -1,0 +1,12 @@
+name: titanic_kaggle
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.6
+  - numpy=1.15.*
+  - scipy=1.1.*
+  - pandas=0.23.*
+  - scikit-learn=0.20.*
+  - pandas>=0.23
+  - matplotlib>=2.2

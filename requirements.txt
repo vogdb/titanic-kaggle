@@ -1,0 +1,7 @@
+ipython[all]>=6.4.0
+numpy>=1.15
+scipy>=1.1
+scikit-learn>=0.20
+matplotlib>=1.4.3
+pandas>=0.23
+matplotlib>=2.2
