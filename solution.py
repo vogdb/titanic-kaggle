@@ -14,6 +14,7 @@ from sklearn.model_selection import cross_validate, cross_val_predict
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.svm import SVC
+from tabulate import tabulate
 
 
 class MostFrequentImputer(BaseEstimator, TransformerMixin):
@@ -29,15 +30,15 @@ class MostFrequentImputer(BaseEstimator, TransformerMixin):
 
 
 class ComparisonDiagramsEstimator(BaseEstimator, TransformerMixin):
-    def __init__(self, estimator_list=None, cv=10, diagram_save_path='./estimator_comparison', diagram_ext='png'):
+    def __init__(self, estimator_list=None, cv=10, save_path='./estimator_comparison', diagram_ext='png'):
         if estimator_list is None or not isinstance(estimator_list, (list, tuple)):
             raise ValueError('`estimator_list` argument should be a list of estimators')
         self.estimator_list = estimator_list
-        self.diagram_save_path = diagram_save_path
+        self.save_path = save_path
         self.cv = cv
         self.diagram_ext = diagram_ext
 
-        os.makedirs(diagram_save_path, exist_ok=True)
+        os.makedirs(save_path, exist_ok=True)
 
     def fit(self, X, y=None):
         self.boxplots(X, y)
@@ -49,16 +50,27 @@ class ComparisonDiagramsEstimator(BaseEstimator, TransformerMixin):
         run cross_validation and display box plots (of cv's) of precision,recall,f1,accuracy for each model.
         '''
         score_name_list = ['accuracy', 'precision', 'recall', 'f1']
-        boxplot_data = []
+        crossval_data = []
         for clf in self.estimator_list:
             clf_name = type(clf).__name__
             score_dict = cross_validate(clf, X, y, scoring=score_name_list, cv=self.cv, return_train_score=False)
             for score_name in score_name_list:
                 key = 'test_' + score_name
                 for value in score_dict[key]:
-                    boxplot_data.append([clf_name, score_name, value])
-        boxplot_df = pd.DataFrame(data=boxplot_data, columns=['clf_name', 'score_type', 'score_value'])
-        boxplot = sns.boxplot(x='clf_name', y='score_value', hue='score_type', data=boxplot_df)
+                    crossval_data.append([clf_name, score_name, value])
+
+        crossval_df = pd.DataFrame(data=crossval_data, columns=['clf_name', 'score_type', 'score_value'])
+        print(
+            tabulate(crossval_df, headers='keys', tablefmt='psql'),
+            file=open(self.get_save_path('crossval_df.txt'), 'w')
+        )
+        crossval_dscr = crossval_df.groupby(['clf_name', 'score_type']).describe()
+        print(
+            tabulate(crossval_dscr, headers='keys', tablefmt='psql'),
+            file=open(self.get_save_path('crossval_dscr.txt'), 'w')
+        )
+
+        boxplot = sns.boxplot(x='clf_name', y='score_value', hue='score_type', data=crossval_df)
         boxplot.set_ylim(0.5, 1.0)
         self.save_figure(boxplot, self.boxplots.__name__)
         plt.close()
@@ -134,9 +146,10 @@ class ComparisonDiagramsEstimator(BaseEstimator, TransformerMixin):
         self.save_figure(roc_curve_ax, 'roc_curve')
 
     def save_figure(self, ax, name):
-        ax.figure.savefig(
-            os.path.join(self.diagram_save_path, name + '.' + self.diagram_ext)
-        )
+        ax.figure.savefig(self.get_save_path(name + '.' + self.diagram_ext))
+
+    def get_save_path(self, name):
+        return os.path.join(self.save_path, name)
 
 
 def create_prepare_pipeline():
