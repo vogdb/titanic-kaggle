@@ -155,7 +155,7 @@ class ComparisonDiagramsEstimator(BaseEstimator, TransformerMixin):
 def create_prepare_pipeline():
     age_transformer = Pipeline([
         ('fill na', SimpleImputer(strategy='median')),
-        # ('scale', StandardScaler()),
+        ('scale', StandardScaler()),
     ])
 
     embarked_transformer = Pipeline([
@@ -165,8 +165,8 @@ def create_prepare_pipeline():
 
     return ColumnTransformer([
         ('age', age_transformer, ['Age']),
-        ('pass', 'passthrough', ['SibSp', 'Parch', 'Fare']),
-        # ('num', StandardScaler(), ['SibSp', 'Parch', 'Fare']),
+        ('pass', 'passthrough', ['SibSp', 'Parch']),
+        ('scaler', StandardScaler(), ['Fare']),
         ('cat', OneHotEncoder(sparse=False), ['Pclass', 'Sex']),
         ('embarked', embarked_transformer, ['Embarked']),
     ], remainder='drop')
