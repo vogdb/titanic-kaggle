@@ -59,6 +59,7 @@ class ComparisonDiagramsEstimator(BaseEstimator, TransformerMixin):
                     boxplot_data.append([clf_name, score_name, value])
         boxplot_df = pd.DataFrame(data=boxplot_data, columns=['clf_name', 'score_type', 'score_value'])
         boxplot = sns.boxplot(x='clf_name', y='score_value', hue='score_type', data=boxplot_df)
+        boxplot.set_ylim(0.5, 1.0)
         self.save_figure(boxplot, self.boxplots.__name__)
         plt.close()
 
