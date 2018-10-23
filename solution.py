@@ -1,10 +1,10 @@
-import numpy as np
 import os
+
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
-import matplotlib.pyplot as plt
-import matplotlib
-
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
