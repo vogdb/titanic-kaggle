@@ -70,8 +70,7 @@ class ComparisonDiagramsEstimator(BaseEstimator, TransformerMixin):
         display ROC curve
         '''
 
-        def get_scores(clf, X, y):
-            cv = 5
+        def get_scores(clf, X, y, cv=self.cv):
             if hasattr(clf, 'decision_function'):
                 return cross_val_predict(clf, X, y, cv=cv, method='decision_function')
             if hasattr(clf, 'predict_proba'):
