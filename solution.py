@@ -59,8 +59,7 @@ class ComparisonDiagramsEstimator(BaseEstimator, TransformerMixin):
                     boxplot_data.append([clf_name, score_name, value])
         boxplot_df = pd.DataFrame(data=boxplot_data, columns=['clf_name', 'score_type', 'score_value'])
         boxplot = sns.boxplot(x='clf_name', y='score_value', hue='score_type', data=boxplot_df)
-        filename = self.boxplots.__name__ + '.' + self.diagram_ext
-        boxplot.figure.savefig(os.path.join(self.diagram_save_path, filename))
+        self.save_figure(boxplot, self.boxplots.__name__)
         plt.close()
 
     def precision_recall(self, X, y):
@@ -129,14 +128,13 @@ class ComparisonDiagramsEstimator(BaseEstimator, TransformerMixin):
         precision_recall_vs_threshold_ax.legend()
         roc_curve_ax.legend()
 
-        precision_vs_recall_ax.figure.savefig(
-            os.path.join(self.diagram_save_path, 'precision_vs_recall.' + self.diagram_ext)
-        )
-        precision_recall_vs_threshold_ax.figure.savefig(
-            os.path.join(self.diagram_save_path, 'precision_recall_vs_threshold.' + self.diagram_ext)
-        )
-        roc_curve_ax.figure.savefig(
-            os.path.join(self.diagram_save_path, 'roc_curve.' + self.diagram_ext)
+        self.save_figure(precision_vs_recall_ax, 'precision_vs_recall')
+        self.save_figure(precision_recall_vs_threshold_ax, 'precision_recall_vs_threshold')
+        self.save_figure(roc_curve_ax, 'roc_curve')
+
+    def save_figure(self, ax, name):
+        ax.figure.savefig(
+            os.path.join(self.diagram_save_path, name + '.' + self.diagram_ext)
         )
 
 
