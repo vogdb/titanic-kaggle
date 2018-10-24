@@ -29,6 +29,45 @@ class MostFrequentImputer(BaseEstimator, TransformerMixin):
         return X.fillna(self.most_frequent_)
 
 
+class AgeImputer(BaseEstimator, TransformerMixin):
+    def fit(self, X, y=None):
+        self._mean_mrs_age = np.floor(
+            X.loc[X.Age.notnull() & X.Name.str.contains('Mrs')]['Age'].mean()
+        )
+        self._mean_age_greater_15 = np.floor(
+            X.loc[(X.Age >= 15) & (X.Parch == 0) & (X.SibSp == 0)]['Age'].mean()
+        )
+        self._mean_age_male_3class = np.floor(
+            X.loc[(X.Sex == 'male') & (X.Pclass == 3)]['Age'].mean()
+        )
+        self._mean_age_female_3class = np.floor(
+            X.loc[(X.Sex == 'female') & (X.Pclass == 3)]['Age'].mean()
+        )
+        return self
+
+    def transform(self, X, y=None):
+        X.loc[X.Age.isnull() & X.Name.str.contains('Mrs'), 'Age'] = self._mean_mrs_age
+        # there is 400 records of people with age >= 15 and 0 relatives vs 4 records of age < 15 and 0 relatives
+        X.loc[X.Age.isnull() & (X.Parch == 0) & (X.SibSp == 0), 'Age'] = self._mean_age_greater_15
+        # the remaining null Age contains only 3 class
+        X.loc[X.Age.isnull() & (X.Sex == 'male') & (X.Pclass == 3), 'Age'] = self._mean_age_male_3class
+        X.loc[X.Age.isnull() & (X.Sex == 'female') & (X.Pclass == 3), 'Age'] = self._mean_age_female_3class
+
+        return X
+
+
+class NewColumnsTransformer(BaseEstimator, TransformerMixin):
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X, y=None):
+        X['AgeBucket'] = X.Age // 15 * 15
+        X['RelativesOnBoard'] = X.SibSp + X.Parch
+        # is a reverend, they all die :(
+        X['Rev'] = X.Name.str.contains('rev.|Rev.')
+        return X
+
+
 class ComparisonDiagramsEstimator(BaseEstimator, TransformerMixin):
     def __init__(self, estimator_list=None, cv=10, save_path='./estimator_comparison', diagram_ext='png'):
         if estimator_list is None or not isinstance(estimator_list, (list, tuple)):
@@ -153,21 +192,15 @@ class ComparisonDiagramsEstimator(BaseEstimator, TransformerMixin):
 
 
 def create_prepare_pipeline():
-    age_transformer = Pipeline([
-        ('fill na', SimpleImputer(strategy='median')),
-        ('scale', StandardScaler()),
-    ])
-
     embarked_transformer = Pipeline([
         ('fill na', MostFrequentImputer()),
         ('onehot', OneHotEncoder(sparse=False)),
     ])
 
     return ColumnTransformer([
-        ('age', age_transformer, ['Age']),
-        ('pass', 'passthrough', ['SibSp', 'Parch']),
-        ('scaler', StandardScaler(), ['Fare']),
-        ('cat', OneHotEncoder(sparse=False), ['Pclass', 'Sex']),
+        ('pass', 'passthrough', ['RelativesOnBoard', 'Rev']),
+        ('scaler', StandardScaler(), ['Fare', 'Age']),
+        ('cat', OneHotEncoder(sparse=False), ['Pclass', 'Sex', 'AgeBucket']),
         ('embarked', embarked_transformer, ['Embarked']),
     ], remainder='drop')
 
@@ -184,6 +217,8 @@ df = pd.read_csv(os.path.join('dataset', 'train.csv'))
 prepare_pipeline = create_prepare_pipeline()
 analyse_pipeline = create_analyse_pipeline()
 main_pipeline = Pipeline([
+    ('age', AgeImputer()),
+    ('new_columns', NewColumnsTransformer()),
     ('prepare', prepare_pipeline),
     ('analyse', analyse_pipeline),
 ])
