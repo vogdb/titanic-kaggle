@@ -5,12 +5,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from scipy.stats import expon, reciprocal, randint
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.impute import SimpleImputer
+from sklearn.externals import joblib
 from sklearn.metrics import precision_recall_curve, roc_curve
-from sklearn.model_selection import cross_validate, cross_val_predict
+from sklearn.model_selection import cross_validate, cross_val_predict, RandomizedSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.svm import SVC
@@ -197,30 +198,86 @@ def create_prepare_pipeline():
         ('onehot', OneHotEncoder(sparse=False)),
     ])
 
-    return ColumnTransformer([
+    column_transformer = ColumnTransformer([
         ('pass', 'passthrough', ['RelativesOnBoard', 'Rev']),
         ('scaler', StandardScaler(), ['Fare', 'Age']),
         ('cat', OneHotEncoder(sparse=False), ['Pclass', 'Sex', 'AgeBucket']),
         ('embarked', embarked_transformer, ['Embarked']),
     ], remainder='drop')
 
+    return Pipeline([
+        ('age', AgeImputer()),
+        ('new_columns', NewColumnsTransformer()),
+        ('prepare', column_transformer),
+    ])
 
-def create_analyse_pipeline():
-    svm_clf = SVC(gamma='auto')
-    forest_clf = RandomForestClassifier(random_state=42, n_estimators=10)
-    clf_list = [svm_clf, forest_clf]
-    return ComparisonDiagramsEstimator(clf_list, cv=5)
+
+class EstimatorSerialize:
+    PATH = './saved_estimators'
+
+    @staticmethod
+    def check_dir():
+        os.makedirs(EstimatorSerialize.PATH, exist_ok=True)
+
+    @staticmethod
+    def load_saved_estimators():
+        EstimatorSerialize.check_dir()
+        estimator_list = []
+        for f in os.listdir(EstimatorSerialize.PATH):
+            f_path = os.path.join(EstimatorSerialize.PATH, f)
+            if os.path.isfile(f_path) and f.lower().endswith('.pkl'):
+                estimator_list.append(joblib.load(f_path))
+        return estimator_list
+
+    @staticmethod
+    def save_estimator(estimator):
+        EstimatorSerialize.check_dir()
+        joblib.dump(estimator, os.path.join(EstimatorSerialize.PATH, type(estimator).__name__ + '.pkl'))
+
+
+def save_best_estimator(X, y):
+    def save_svm():
+        svm_clf = SVC()
+        param_distribs = {
+            'kernel': ['linear', 'rbf'],
+            'C': reciprocal(20, 200000),
+            'gamma': expon(scale=1.0),
+        }
+        search = RandomizedSearchCV(
+            svm_clf, param_distributions=param_distribs,
+            n_iter=40, cv=5, scoring='f1',
+        )
+        search.fit(X, y)
+        EstimatorSerialize.save_estimator(search.best_estimator_)
+
+    def save_rnd_forest():
+        forest_clf = RandomForestClassifier()
+        param_distribs = {
+            'n_estimators': randint(low=1, high=200),
+            'max_features': randint(low=1, high=8),
+        }
+        search = RandomizedSearchCV(
+            forest_clf, param_distributions=param_distribs,
+            n_iter=20, cv=5, scoring='f1',
+        )
+        search.fit(X, y)
+        EstimatorSerialize.save_estimator(search.best_estimator_)
+
+    save_svm()
+    save_rnd_forest()
 
 
 df = pd.read_csv(os.path.join('dataset', 'train.csv'))
-
+y = df.Survived
 prepare_pipeline = create_prepare_pipeline()
-analyse_pipeline = create_analyse_pipeline()
-main_pipeline = Pipeline([
-    ('age', AgeImputer()),
-    ('new_columns', NewColumnsTransformer()),
-    ('prepare', prepare_pipeline),
-    ('analyse', analyse_pipeline),
-])
+clf_list = EstimatorSerialize.load_saved_estimators()
 
-main_pipeline.fit(df, df.Survived)
+if len(clf_list) == 0:
+    X = prepare_pipeline.fit_transform(df)
+    save_best_estimator(X, y),
+else:
+    main_pipeline = Pipeline([
+        ('prepare', prepare_pipeline),
+        ('analyse', ComparisonDiagramsEstimator(clf_list, cv=5)),
+    ])
+    main_pipeline.fit(df, df.Survived)
