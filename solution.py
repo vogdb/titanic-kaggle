@@ -10,6 +10,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.externals import joblib
+from sklearn.impute import SimpleImputer
 from sklearn.metrics import precision_recall_curve, roc_curve
 from sklearn.model_selection import cross_validate, cross_val_predict, RandomizedSearchCV
 from sklearn.pipeline import Pipeline
@@ -200,7 +201,11 @@ def create_prepare_pipeline():
 
     column_transformer = ColumnTransformer([
         ('pass', 'passthrough', ['RelativesOnBoard', 'Rev']),
-        ('scaler', StandardScaler(), ['Fare', 'Age']),
+        ('fare', Pipeline([
+            ('impute', SimpleImputer(strategy='median')),
+            ('scale', StandardScaler())
+        ]), ['Fare']),
+        ('age', StandardScaler(), ['Age']),
         ('cat', OneHotEncoder(sparse=False), ['Pclass', 'Sex', 'AgeBucket']),
         ('embarked', embarked_transformer, ['Embarked']),
     ], remainder='drop')
@@ -230,6 +235,11 @@ class EstimatorSerialize:
         return estimator_list
 
     @staticmethod
+    def load_estimator(class_):
+        estimator_path = os.path.join(EstimatorSerialize.PATH, class_.__name__ + '.pkl')
+        return joblib.load(estimator_path)
+
+    @staticmethod
     def save_estimator(estimator):
         EstimatorSerialize.check_dir()
         joblib.dump(estimator, os.path.join(EstimatorSerialize.PATH, type(estimator).__name__ + '.pkl'))
@@ -245,7 +255,7 @@ def save_best_estimator(X, y):
         }
         search = RandomizedSearchCV(
             svm_clf, param_distributions=param_distribs,
-            n_iter=40, cv=5, scoring='f1',
+            n_iter=40, cv=5, scoring='f1', n_jobs=4, random_state=42
         )
         search.fit(X, y)
         EstimatorSerialize.save_estimator(search.best_estimator_)
@@ -258,7 +268,7 @@ def save_best_estimator(X, y):
         }
         search = RandomizedSearchCV(
             forest_clf, param_distributions=param_distribs,
-            n_iter=20, cv=5, scoring='f1',
+            n_iter=20, cv=5, scoring='f1', n_jobs=4, random_state=42
         )
         search.fit(X, y)
         EstimatorSerialize.save_estimator(search.best_estimator_)
@@ -267,17 +277,33 @@ def save_best_estimator(X, y):
     save_rnd_forest()
 
 
-df = pd.read_csv(os.path.join('dataset', 'train.csv'))
-y = df.Survived
-prepare_pipeline = create_prepare_pipeline()
-clf_list = EstimatorSerialize.load_saved_estimators()
+def write_result():
+    df = pd.read_csv(os.path.join('dataset', 'test.csv'))
+    prepare_pipeline = create_prepare_pipeline()
+    estimator_class = RandomForestClassifier
+    estimator = EstimatorSerialize.load_estimator(estimator_class)
 
-if len(clf_list) == 0:
-    X = prepare_pipeline.fit_transform(df)
-    save_best_estimator(X, y),
+    X_test = prepare_pipeline.fit_transform(df)
+    y_test = estimator.predict(X_test)
+    df['Survived'] = y_test
+    df.to_csv('result.csv', columns=['PassengerId', 'Survived'], header=True, index=False)
+
+
+calc_result = True
+if calc_result:
+    write_result()
 else:
-    main_pipeline = Pipeline([
-        ('prepare', prepare_pipeline),
-        ('analyse', ComparisonDiagramsEstimator(clf_list, cv=5)),
-    ])
-    main_pipeline.fit(df, df.Survived)
+    df = pd.read_csv(os.path.join('dataset', 'train.csv'))
+    y = df.Survived
+    prepare_pipeline = create_prepare_pipeline()
+    clf_list = EstimatorSerialize.load_saved_estimators()
+
+    if len(clf_list) == 0:
+        X = prepare_pipeline.fit_transform(df)
+        save_best_estimator(X, y),
+    else:
+        main_pipeline = Pipeline([
+            ('prepare', prepare_pipeline),
+            ('analyse', ComparisonDiagramsEstimator(clf_list, cv=5)),
+        ])
+        main_pipeline.fit(df, y)
