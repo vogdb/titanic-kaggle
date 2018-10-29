@@ -255,7 +255,7 @@ def save_best_estimator(X, y):
         }
         search = RandomizedSearchCV(
             svm_clf, param_distributions=param_distribs,
-            n_iter=40, cv=5, scoring='f1', n_jobs=4, random_state=42
+            n_iter=40, cv=5, scoring='accuracy', n_jobs=4, random_state=42
         )
         search.fit(X, y)
         EstimatorSerialize.save_estimator(search.best_estimator_)
@@ -268,25 +268,27 @@ def save_best_estimator(X, y):
         }
         search = RandomizedSearchCV(
             forest_clf, param_distributions=param_distribs,
-            n_iter=20, cv=5, scoring='f1', n_jobs=4, random_state=42
+            n_iter=20, cv=5, scoring='accuracy', n_jobs=4, random_state=42
         )
         search.fit(X, y)
         EstimatorSerialize.save_estimator(search.best_estimator_)
 
     save_svm()
-    save_rnd_forest()
+    # save_rnd_forest()
 
 
 def write_result():
-    df = pd.read_csv(os.path.join('dataset', 'test.csv'))
+    df_train = pd.read_csv(os.path.join('dataset', 'train.csv'))
+    df_test = pd.read_csv(os.path.join('dataset', 'test.csv'))
     prepare_pipeline = create_prepare_pipeline()
     estimator_class = RandomForestClassifier
     estimator = EstimatorSerialize.load_estimator(estimator_class)
 
-    X_test = prepare_pipeline.fit_transform(df)
+    prepare_pipeline.fit(df_train, df_train.Survived)
+    X_test = prepare_pipeline.transform(df_test)
     y_test = estimator.predict(X_test)
-    df['Survived'] = y_test
-    df.to_csv('result.csv', columns=['PassengerId', 'Survived'], header=True, index=False)
+    df_test['Survived'] = y_test
+    df_test.to_csv('result.csv', columns=['PassengerId', 'Survived'], header=True, index=False)
 
 
 calc_result = True
