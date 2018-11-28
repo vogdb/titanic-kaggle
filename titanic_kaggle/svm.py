@@ -11,7 +11,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.svm import SVC
 
-from estimator_serialize import EstimatorSerialize
+from titanic_kaggle.estimator_serialize import EstimatorSerialize
 
 
 class MostFrequentImputer(BaseEstimator, TransformerMixin):
