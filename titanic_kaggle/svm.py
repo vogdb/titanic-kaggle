@@ -1,7 +1,6 @@
-import os
-
 import numpy as np
 import pandas as pd
+from load_data import load_data
 from scipy.stats import expon, reciprocal
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.compose import ColumnTransformer
@@ -89,21 +88,23 @@ def create_prepare_pipeline():
     ])
 
 
-df = pd.read_csv(os.path.join('dataset', 'train.csv'))
-y = df.Survived
+def main():
+    X_train, y_train, X_test = load_data()
+    prepare_pipeline = create_prepare_pipeline()
+    X_train = prepare_pipeline.fit_transform(X_train)
 
-prepare_pipeline = create_prepare_pipeline()
-X = prepare_pipeline.fit_transform(df)
+    svm_clf = SVC()
+    param_distribs = {
+        'kernel': ['linear', 'rbf'],
+        'C': reciprocal(20, 20000),
+        'gamma': expon(scale=1.0),
+    }
+    search = RandomizedSearchCV(
+        svm_clf, param_distributions=param_distribs,
+        n_iter=20, cv=5, scoring='accuracy', n_jobs=-1
+    )
+    search.fit(X_train, y_train)
+    EstimatorSerialize.save_estimator('svm', search.best_estimator_)
 
-svm_clf = SVC()
-param_distribs = {
-    'kernel': ['linear', 'rbf'],
-    'C': reciprocal(20, 200000),
-    'gamma': expon(scale=1.0),
-}
-search = RandomizedSearchCV(
-    svm_clf, param_distributions=param_distribs,
-    n_iter=20, cv=5, scoring='accuracy', n_jobs=4, random_state=42
-)
-search.fit(X, y)
-EstimatorSerialize.save_estimator('svm', search.best_estimator_)
+
+main()

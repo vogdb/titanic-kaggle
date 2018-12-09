@@ -7,5 +7,7 @@ setup(
     url='https://github.com/vogdb/titanic-kaggle/',
     license='MIT',
     python_requires='>3.5',
-    package_data={'dataset': ['dataset']}
+    packages=['titanic_kaggle'],
+    package_dir={'titanic_kaggle': 'titanic_kaggle'},
+    package_data={'titanic_kaggle': ['dataset']},
 )
