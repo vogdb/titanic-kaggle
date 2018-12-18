@@ -24,6 +24,7 @@ class MostFrequentImputer(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X, y=None):
+        X = X.copy()
         return X.fillna(self.most_frequent_)
 
 
@@ -44,6 +45,7 @@ class AgeImputer(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X, y=None):
+        X = X.copy()
         X.loc[X.Age.isnull() & X.Name.str.contains('Mrs'), 'Age'] = self._mean_mrs_age
         # there is 400 records of people with age >= 15 and 0 relatives vs 4 records of age < 15 and 0 relatives
         X.loc[X.Age.isnull() & (X.Parch == 0) & (X.SibSp == 0), 'Age'] = self._mean_age_greater_15
@@ -59,6 +61,7 @@ class NewColumnsTransformer(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X, y=None):
+        X = X.copy()
         X['AgeBucket'] = X.Age // 15 * 15
         X['RelativesOnBoard'] = X.SibSp + X.Parch
         # is a reverend, they all die :(
