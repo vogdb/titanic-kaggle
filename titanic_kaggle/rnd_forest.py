@@ -1,12 +1,11 @@
-from scipy.stats import randint
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
-from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 
-from titanic_kaggle.data_processing import load_data, MostFrequentImputer, NewColumnsTransformer, AgeImputer
+from titanic_kaggle.data_processing import load_data, MostFrequentImputer, AgeImputer, NewColumnsTransformer
 from titanic_kaggle.estimator_serialize import EstimatorSerialize
 
 
@@ -35,19 +34,21 @@ def create_prepare_pipeline():
 def main():
     X_train, y_train, X_test = load_data()
 
-    prepare_pipeline = create_prepare_pipeline()
-    X_train = prepare_pipeline.fit_transform(X_train)
-    forest_clf = RandomForestClassifier()
     param_distribs = {
-        'n_estimators': randint(low=1, high=200),
-        'max_features': randint(low=1, high=8),
+        'n_estimators': range(150, 170, 2),
+        'max_features': range(10, 16),
     }
-    search = RandomizedSearchCV(
-        forest_clf, param_distributions=param_distribs,
-        n_iter=20, cv=5, scoring='accuracy', n_jobs=-1, error_score='raise'
+    search = GridSearchCV(
+        RandomForestClassifier(), param_grid=param_distribs, refit=True,
+        cv=5, scoring='accuracy', n_jobs=-1, error_score='raise'
     )
-    search.fit(X_train, y_train)
-    EstimatorSerialize.save_estimator('rnd_forest', search.best_estimator_)
+    pipeline = Pipeline([
+        ('prepare', create_prepare_pipeline()),
+        ('search', search),
+    ])
+
+    pipeline.fit(X_train, y_train)
+    EstimatorSerialize.save_estimator('rnd_forest', pipeline)
 
     print(search.best_estimator_)
     print(search.best_score_)
