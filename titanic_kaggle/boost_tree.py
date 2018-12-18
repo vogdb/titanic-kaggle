@@ -16,9 +16,9 @@ def main():
     if use_xgb:
         clf = xgb.XGBClassifier(objective='binary:logistic', n_jobs=-1)
         param_grid = {
-            'max_depth': [3],
-            'learning_rate': [.1],
-            'n_estimators': [700],
+            'max_depth': [3],  # [2, 3, 4]
+            'learning_rate': [.1],  # [.2 - .01]
+            'n_estimators': [700],  # [50 - 7000]
         }
     else:
         clf = GradientBoostingClassifier()
