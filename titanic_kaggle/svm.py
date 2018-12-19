@@ -57,8 +57,10 @@ def main():
         ('prepare', create_prepare_pipeline()),
         ('search', search),
     ])
+
     pipeline.fit(X_train, y_train)
-    EstimatorSerialize.save_estimator('svm', search.best_estimator_)
+    EstimatorSerialize.save_estimator('svm', pipeline)
+
     print(search.best_estimator_)
     print(search.best_score_)
 
