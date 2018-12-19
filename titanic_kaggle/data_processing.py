@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import pkg_resources
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.pipeline import Pipeline
 
 
 def load_data():
@@ -13,19 +14,6 @@ def load_data():
     X_test = pd.read_csv(test_filename)
 
     return X_train, y_train, X_test
-
-
-class MostFrequentImputer(BaseEstimator, TransformerMixin):
-    def fit(self, X, y=None):
-        self.most_frequent_ = pd.Series(
-            [X[c].value_counts().index[0] for c in X],
-            index=X.columns
-        )
-        return self
-
-    def transform(self, X, y=None):
-        X = X.copy()
-        return X.fillna(self.most_frequent_)
 
 
 class AgeImputer(BaseEstimator, TransformerMixin):
@@ -45,7 +33,7 @@ class AgeImputer(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X, y=None):
-        X = X.copy()
+        X = X.copy(deep=True)
         X.loc[X.Age.isnull() & X.Name.str.contains('Mrs'), 'Age'] = self._mean_mrs_age
         # there is 400 records of people with age >= 15 and 0 relatives vs 4 records of age < 15 and 0 relatives
         X.loc[X.Age.isnull() & (X.Parch == 0) & (X.SibSp == 0), 'Age'] = self._mean_age_greater_15
@@ -61,9 +49,13 @@ class NewColumnsTransformer(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X, y=None):
-        X = X.copy()
-        X['AgeBucket'] = X.Age // 15 * 15
+        X = X.copy(deep=True)
+        X['AgeBucket'] = to_agebucket(X)
         X['RelativesOnBoard'] = X.SibSp + X.Parch
         # is a reverend, they all die :(
         X['Rev'] = X.Name.str.contains('rev.|Rev.')
         return X
+
+
+def to_agebucket(X):
+    return X.Age.astype(np.int32) // 15 * 15

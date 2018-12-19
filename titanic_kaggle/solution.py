@@ -1,5 +1,7 @@
+import numpy as np
 from sklearn.ensemble import VotingClassifier
 from sklearn.metrics import accuracy_score, f1_score
+from sklearn.model_selection import cross_validate
 
 from titanic_kaggle.data_processing import load_data
 from titanic_kaggle.estimator_serialize import EstimatorSerialize
@@ -36,18 +38,17 @@ def main():
 
     for clf_tuple in cmp_clf_list:
         clf_name, clf = clf_tuple
-        # scores = cross_validate(
-        #     clf, X_train, y_train, scoring=['accuracy', 'f1'], cv=3, n_jobs=-1, return_train_score=False,
-        #     verbose=2
-        # )
-        # print(scores)
-        clf.fit(X_train, y_train)
-        y_train_pred = clf.predict(X_train)
-        print('{} acc: {}, f1: {}'.format(
-            clf_name,
-            accuracy_score(y_train, y_train_pred),
-            f1_score(y_train, y_train_pred),
-        ))
+        scores = cross_validate(
+            clf, X_train, y_train, scoring=['accuracy', 'f1'], cv=5, n_jobs=-1, return_train_score=False
+        )
+        print(np.mean(scores['test_accuracy']), np.mean(scores['test_f1']))
+        # clf.fit(X_train, y_train)
+        # y_train_pred = clf.predict(X_train)
+        # print('{} acc: {}, f1: {}'.format(
+        #     clf_name,
+        #     accuracy_score(y_train, y_train_pred),
+        #     f1_score(y_train, y_train_pred),
+        # ))
 
     y_test = boost_tree_pipeline.predict(X_test)
     X_test['Survived'] = y_test

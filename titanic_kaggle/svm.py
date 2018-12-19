@@ -6,7 +6,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.svm import SVC
 import numpy as np
-from titanic_kaggle.data_processing import MostFrequentImputer, AgeImputer, NewColumnsTransformer, load_data
+from titanic_kaggle.data_processing import AgeImputer, NewColumnsTransformer, load_data
 from titanic_kaggle.estimator_serialize import EstimatorSerialize
 
 
@@ -20,7 +20,7 @@ def create_prepare_pipeline():
         ('age', StandardScaler(), ['Age']),
         ('cat', OneHotEncoder(sparse=False), ['Pclass', 'Sex']),
         ('embarked', Pipeline([
-            ('fill na', MostFrequentImputer()),
+            ('fill na', SimpleImputer(strategy='most_frequent')),
             ('onehot', OneHotEncoder(sparse=False)),
         ]), ['Embarked']),
     ], remainder='drop')

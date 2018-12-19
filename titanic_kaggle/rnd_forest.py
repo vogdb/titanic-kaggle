@@ -1,11 +1,11 @@
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, cross_validate
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 
-from titanic_kaggle.data_processing import load_data, MostFrequentImputer, AgeImputer, NewColumnsTransformer
+from titanic_kaggle.data_processing import load_data, AgeImputer, NewColumnsTransformer
 from titanic_kaggle.estimator_serialize import EstimatorSerialize
 
 
@@ -13,9 +13,10 @@ def create_prepare_pipeline():
     column_transformer = ColumnTransformer([
         ('pass', 'passthrough', ['RelativesOnBoard', 'Rev']),
         ('fare', SimpleImputer(strategy='median'), ['Fare']),
-        ('cat', OneHotEncoder(sparse=False), ['Pclass', 'Sex', 'AgeBucket']),
+        ('cat', OneHotEncoder(sparse=False), ['Pclass', 'Sex']),
+        ('age_bucket', OneHotEncoder(categories=[[0, 15, 30, 45, 60, 75, 90]], sparse=False), ['AgeBucket']),
         ('embarked', Pipeline([
-            ('fill na', MostFrequentImputer()),
+            ('fill na', SimpleImputer(strategy='most_frequent')),
             ('onehot', OneHotEncoder(sparse=False)),
         ]), ['Embarked']),
     ], remainder='drop')
