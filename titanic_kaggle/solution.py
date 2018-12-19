@@ -1,56 +1,58 @@
-import os
+from sklearn.ensemble import VotingClassifier
+from sklearn.metrics import accuracy_score, f1_score
 
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import seaborn as sns
-from scipy.stats import expon, reciprocal, randint
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.externals import joblib
-from sklearn.impute import SimpleImputer
-from sklearn.metrics import precision_recall_curve, roc_curve
-from sklearn.model_selection import cross_validate, cross_val_predict, RandomizedSearchCV
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.svm import SVC
-from tabulate import tabulate
+from titanic_kaggle.data_processing import load_data
+from titanic_kaggle.estimator_serialize import EstimatorSerialize
 
 
-# To the comparison and after saving the best
+def main():
+    rnd_forest_pipeline = EstimatorSerialize.load_estimator('rnd_forest')
+    svm_pipeline = EstimatorSerialize.load_estimator('svm')
+    mlp_pipeline = EstimatorSerialize.load_estimator('mlp')
+    boost_tree_pipeline = EstimatorSerialize.load_estimator('boost_tree')
 
-def write_result():
-    df_train = pd.read_csv(os.path.join('dataset', 'train.csv'))
-    df_test = pd.read_csv(os.path.join('dataset', 'test.csv'))
-    prepare_pipeline = create_prepare_pipeline()
-    estimator_class = RandomForestClassifier
-    estimator = EstimatorSerialize.load_estimator(estimator_class)
+    estimator_list = [
+        ('rnd_forest', rnd_forest_pipeline),
+        ('svm', svm_pipeline),
+        ('mlp', mlp_pipeline),
+        ('boost_tree', boost_tree_pipeline),
+    ]
 
-    prepare_pipeline.fit(df_train, df_train.Survived)
-    X_test = prepare_pipeline.transform(df_test)
-    y_test = estimator.predict(X_test)
-    df_test['Survived'] = y_test
-    df_test.to_csv('result.csv', columns=['PassengerId', 'Survived'], header=True, index=False)
+    voting_clf_hard = VotingClassifier(
+        estimators=estimator_list,
+        voting='hard'
+    )
+    voting_clf_soft = VotingClassifier(
+        estimators=estimator_list,
+        voting='soft'
+    )
+
+    cmp_clf_list = estimator_list + [
+        ('voting_hard', voting_clf_hard),
+        ('voting_soft', voting_clf_soft),
+    ]
+
+    X_train, y_train, X_test = load_data()
+
+    for clf_tuple in cmp_clf_list:
+        clf_name, clf = clf_tuple
+        # scores = cross_validate(
+        #     clf, X_train, y_train, scoring=['accuracy', 'f1'], cv=3, n_jobs=-1, return_train_score=False,
+        #     verbose=2
+        # )
+        # print(scores)
+        clf.fit(X_train, y_train)
+        y_train_pred = clf.predict(X_train)
+        print('{} acc: {}, f1: {}'.format(
+            clf_name,
+            accuracy_score(y_train, y_train_pred),
+            f1_score(y_train, y_train_pred),
+        ))
+
+    y_test = boost_tree_pipeline.predict(X_test)
+    X_test['Survived'] = y_test
+    X_test.to_csv('result.csv', columns=['PassengerId', 'Survived'], header=True, index=False)
 
 
-# TODO when we use the best SVM, we also need to use its prepare for transform of Test data.
-calc_result = True
-if calc_result:
-    write_result()
-else:
-    df = pd.read_csv(os.path.join('dataset', 'train.csv'))
-    y = df.Survived
-    prepare_pipeline = create_prepare_pipeline()
-    clf_list = EstimatorSerialize.load_saved_estimators()
-
-    if len(clf_list) == 0:
-        X = prepare_pipeline.fit_transform(df)
-        save_best_estimator(X, y),
-    else:
-        main_pipeline = Pipeline([
-            ('prepare', prepare_pipeline),
-            ('analyse', ComparisonDiagramsEstimator(clf_list, cv=5)),
-        ])
-        main_pipeline.fit(df, y)
+if __name__ == '__main__':
+    main()
