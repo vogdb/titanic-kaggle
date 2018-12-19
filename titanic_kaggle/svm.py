@@ -11,11 +11,6 @@ from titanic_kaggle.estimator_serialize import EstimatorSerialize
 
 
 def create_prepare_pipeline():
-    embarked_transformer = Pipeline([
-        ('fill na', MostFrequentImputer()),
-        ('onehot', OneHotEncoder(sparse=False)),
-    ])
-
     column_transformer = ColumnTransformer([
         ('pass', 'passthrough', ['RelativesOnBoard', 'Rev']),
         ('fare', Pipeline([
@@ -24,7 +19,10 @@ def create_prepare_pipeline():
         ]), ['Fare']),
         ('age', StandardScaler(), ['Age']),
         ('cat', OneHotEncoder(sparse=False), ['Pclass', 'Sex']),
-        ('embarked', embarked_transformer, ['Embarked']),
+        ('embarked', Pipeline([
+            ('fill na', MostFrequentImputer()),
+            ('onehot', OneHotEncoder(sparse=False)),
+        ]), ['Embarked']),
     ], remainder='drop')
 
     return Pipeline([
