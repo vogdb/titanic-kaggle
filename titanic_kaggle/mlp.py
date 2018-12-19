@@ -10,7 +10,7 @@ from titanic_kaggle.svm import create_prepare_pipeline
 
 def rand_array():
     # return np.random.randint(100, size=(np.random.randint(1, 4)))
-    return np.random.randint(50)
+    return np.random.randint(5, 50)
 
 
 def rand_array_list(n):
@@ -27,20 +27,25 @@ def main():
     param_grid = {
         'hidden_layer_sizes': rand_array_list(30),
     }
-    search = GridSearchCV(
+    search_cv = GridSearchCV(
         mlp_clf, param_grid=param_grid, refit=True,
         cv=5, scoring='accuracy', n_jobs=-1, error_score='raise'
     )
-    pipeline = Pipeline([
-        ('prepare', create_prepare_pipeline()),
-        ('search', search),
+    prepare_pipeline = create_prepare_pipeline()
+    search_pipeline = Pipeline([
+        ('prepare', prepare_pipeline),
+        ('search', search_cv),
     ])
+    search_pipeline.fit(X_train, y_train)
 
-    pipeline.fit(X_train, y_train)
-    EstimatorSerialize.save_estimator('mlp', pipeline)
+    best_pipeline = Pipeline([
+        ('prepare', prepare_pipeline),
+        ('estimator', search_cv.best_estimator_),
+    ])
+    EstimatorSerialize.save_estimator('mlp', best_pipeline)
 
-    print(search.best_estimator_)
-    print(search.best_score_)
+    print(search_cv.best_estimator_)
+    print(search_cv.best_score_)
 
 
 if __name__ == '__main__':

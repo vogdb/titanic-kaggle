@@ -49,20 +49,25 @@ def main():
         'gamma': np.arange(0.01, 0.11, 0.01),
         'C': np.arange(1, 11),
     }
-    search = GridSearchCV(
-        SVC(), param_grid=param_grid,
+    search_cv = GridSearchCV(
+        SVC(probability=True), param_grid=param_grid,
         cv=5, scoring='accuracy', n_jobs=-1
     )
-    pipeline = Pipeline([
-        ('prepare', create_prepare_pipeline()),
-        ('search', search),
+    prepare_pipeline = create_prepare_pipeline()
+    search_pipeline = Pipeline([
+        ('prepare', prepare_pipeline),
+        ('search', search_cv),
     ])
+    search_pipeline.fit(X_train, y_train)
 
-    pipeline.fit(X_train, y_train)
-    EstimatorSerialize.save_estimator('svm', pipeline)
+    best_pipeline = Pipeline([
+        ('prepare', prepare_pipeline),
+        ('estimator', search_cv.best_estimator_),
+    ])
+    EstimatorSerialize.save_estimator('svm', best_pipeline)
 
-    print(search.best_estimator_)
-    print(search.best_score_)
+    print(search_cv.best_estimator_)
+    print(search_cv.best_score_)
 
 
 if __name__ == '__main__':

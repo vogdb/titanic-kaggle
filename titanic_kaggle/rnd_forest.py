@@ -34,20 +34,25 @@ def main():
         'n_estimators': range(150, 170, 2),
         'max_features': range(10, 16),
     }
-    search = GridSearchCV(
+    search_cv = GridSearchCV(
         RandomForestClassifier(), param_grid=param_distribs, refit=True,
         cv=5, scoring='accuracy', n_jobs=-1, error_score='raise'
     )
-    pipeline = Pipeline([
-        ('prepare', create_prepare_pipeline()),
-        ('search', search),
+    prepare_pipeline = create_prepare_pipeline()
+    search_pipeline = Pipeline([
+        ('prepare', prepare_pipeline),
+        ('search', search_cv),
     ])
+    search_pipeline.fit(X_train, y_train)
 
-    pipeline.fit(X_train, y_train)
-    EstimatorSerialize.save_estimator('rnd_forest', pipeline)
+    best_pipeline = Pipeline([
+        ('prepare', prepare_pipeline),
+        ('estimator', search_cv.best_estimator_),
+    ])
+    EstimatorSerialize.save_estimator('rnd_forest', best_pipeline)
 
-    print(search.best_estimator_)
-    print(search.best_score_)
+    print(search_cv.best_estimator_)
+    print(search_cv.best_score_)
 
 
 if __name__ == '__main__':
