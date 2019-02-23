@@ -1,8 +1,10 @@
+from typing import List, Dict, Tuple
+
+import inflection
 import numpy as np
 import pandas as pd
 import pkg_resources
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.pipeline import Pipeline
 
 
 def load_data():
@@ -59,3 +61,29 @@ class NewColumnsTransformer(BaseEstimator, TransformerMixin):
 
 def to_agebucket(X):
     return X.Age.astype(np.int32) // 15 * 15
+
+
+def do_num_bucket(data: pd.DataFrame, attrs: List, suffix: str = '_bucket', params: Dict = None) \
+        -> Tuple[pd.DataFrame, List]:
+    new_attrs = [attr + suffix for attr in attrs]
+    mask = data[attrs].notnull()
+    data_tmp = (data[attrs].fillna(0) // params.len * params.len).astype(np.int32)
+    data[new_attrs] = data_tmp.where(mask)
+
+    if params.drop:
+        data = data.drop(attrs, axis=1)
+    return data, new_attrs
+
+
+def snake_case_column_names(data: pd.DataFrame):
+    old_column_names = data.columns
+    new_column_names = [inflection.underscore(column) for column in old_column_names]
+    return data.rename(columns=dict(zip(old_column_names, new_column_names)))
+
+
+if __name__ == '__main__':
+    X_train, y_train, X_test = load_data()
+    X_train = snake_case_column_names(X_train)
+    print(X_train.columns)
+    X_train, _ = do_num_bucket(X_train, ['age', 'fare'], params=dict(len=15, drop=True))
+    print(X_train.head())
